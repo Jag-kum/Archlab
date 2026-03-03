@@ -18,7 +18,8 @@ ArchLab lets you model distributed architectures — load balancers, worker pool
 - **SLA Checking** — validate p95, p99 latency, throughput, and drop rate against custom thresholds
 - **Parameter Sweeps** — sweep any parameter (workers, RPS, etc.) across a range of values with multi-seed averaging
 - **CLI + Web UI + REST API** — use from the terminal, a browser, or integrate programmatically
-- **137 automated tests** covering the full engine, CLI, API, and all component types
+- **148 automated tests** covering the full engine, CLI, API, and all component types
+- **Validated against real microservices** — benchmark shows <5% throughput error vs live Flask services
 
 ## Quick Start
 
@@ -111,7 +112,8 @@ archlab/
 │   └── static/index.html # Visual drag-and-drop UI
 ├── __main__.py       # CLI entry point (simulate, sweep, serve)
 ├── examples/         # YAML config examples
-└── tests/            # 137 pytest tests
+├── benchmark/        # Validation against real Flask microservices
+└── tests/            # 148 pytest tests
 ```
 
 The engine is **framework-agnostic** — it uses only Python's standard library (heapq, random, dataclasses, abc). The CLI adds PyYAML, and the web UI adds FastAPI. Each layer is independently testable.
@@ -169,6 +171,30 @@ curl -X POST http://localhost:8000/simulate \
 curl -X POST http://localhost:8000/sweep \
   -H "Content-Type: application/json" \
   -d '{"components":[...],"simulation":{...},"param":"app.workers","values":[1,2,3,5]}'
+```
+
+## Validation Benchmark
+
+ArchLab's predictions have been validated against real Flask microservices.
+The benchmark starts two Flask apps (API + DB with `time.sleep()` for processing),
+load tests them at 5 RPS, then models the identical topology in ArchLab and compares:
+
+```
+  Metric                     Real  Simulated    Error   Status
+  ------------------------------------------------------------
+  throughput               5.3823     5.3600     0.4%     PASS
+  p95_latency              1.2030     1.4211    18.1%     PASS
+  average_latency          0.5953     0.5834     2.0%     PASS
+  completion_rate          1.0000     0.9640     3.6%     PASS
+
+  Overall: PASS (tolerance: 25%)
+```
+
+Run it yourself:
+
+```bash
+pip install flask requests
+python benchmark/validate.py --rps 5 --duration 15
 ```
 
 ## Running Tests
