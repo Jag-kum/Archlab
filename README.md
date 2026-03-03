@@ -2,7 +2,7 @@
 
 **A discrete-event simulator for distributed system capacity planning and bottleneck detection.**
 
-[![CI](https://github.com/YOUR_USERNAME/archlab/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/archlab/actions)
+[![CI](https://github.com/Jag-kum/archlab/actions/workflows/ci.yml/badge.svg)](https://github.com/Jag-kum/archlab/actions)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -26,7 +26,7 @@ ArchLab lets you model distributed architectures — load balancers, worker pool
 ### Install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/archlab.git
+git clone https://github.com/Jag-kum/archlab.git
 cd archlab
 pip install -e ".[dev,web]"
 ```
