@@ -12,6 +12,7 @@ dependencies = ["pyyaml"]
 [project.optional-dependencies]
 dev = ["pytest", "httpx"]
 web = ["fastapi", "uvicorn[standard]"]
+benchmark = ["flask", "requests"]
 
 [project.scripts]
 archlab = "archlab.__main__:main"
