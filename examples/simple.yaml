@@ -1,0 +1,10 @@
+components:
+  - id: app
+    type: component
+    service_time: 1.0
+    workers: 2
+
+simulation:
+  entry: app
+  rps: 3
+  duration: 10

@@ -1,0 +1,34 @@
+components:
+  - id: lb
+    type: load_balancer
+    targets: [app1, app2]
+
+  - id: app1
+    type: component
+    service_time:
+      distribution: exponential
+      mean: 0.3
+    workers: 4
+    next_component: db
+
+  - id: app2
+    type: component
+    service_time:
+      distribution: exponential
+      mean: 0.3
+    workers: 4
+    next_component: db
+
+  - id: db
+    type: component
+    service_time:
+      distribution: exponential
+      mean: 0.8
+    workers: 3
+
+simulation:
+  entry: lb
+  rps: 10
+  duration: 30
+  seed: 42
+  stochastic: true

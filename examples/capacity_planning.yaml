@@ -1,0 +1,31 @@
+# Capacity Planning Scenario
+#
+# A web stack where the database is the bottleneck.
+# Use sweep to find the minimum db.workers that meets the SLA:
+#
+#   python -m archlab sweep examples/capacity_planning.yaml \
+#     --param db.workers --values 1,2,3,4,5,6,8,10 \
+#     --seeds 42,100,200
+
+components:
+  - id: api
+    type: component
+    service_time:
+      distribution: exponential
+      mean: 0.2
+    workers: 5
+    next_component: db
+
+  - id: db
+    type: component
+    service_time:
+      distribution: exponential
+      mean: 0.8
+    workers: 3
+
+simulation:
+  entry: api
+  rps: 8
+  duration: 30
+  seed: 42
+  stochastic: true

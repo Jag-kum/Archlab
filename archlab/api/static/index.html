@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ArchLab - Distributed Systems Simulator</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #22253a;
+  --border: #2a2d3a;
+  --border-hover: #3d4157;
+  --accent: #6c63ff;
+  --accent-hover: #5a52e0;
+  --accent-glow: rgba(108, 99, 255, 0.25);
+  --text: #e4e4e7;
+  --muted: #8b8d97;
+  --success: #22c55e;
+  --danger: #ef4444;
+  --warn: #f59e0b;
+  --cyan: #22d3ee;
+  --orange: #f97316;
+  --pink: #ec4899;
+  --radius: 8px;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  height: 100vh;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ─── Header ─── */
+header {
+  height: 48px;
+  border-bottom: 1px solid var(--border);
+  padding: 0 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-shrink: 0;
+}
+
+header h1 { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.02em; }
+header h1 span { color: var(--accent); }
+
+.header-tabs { display: flex; gap: 0; }
+
+.header-tab {
+  background: none; border: none; color: var(--muted);
+  padding: 0.75rem 1rem; font-size: 0.8rem; cursor: pointer;
+  border-bottom: 2px solid transparent; transition: all 0.15s;
+  font-family: var(--font);
+}
+.header-tab:hover { color: var(--text); }
+.header-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.header-actions { margin-left: auto; display: flex; align-items: center; gap: 0.75rem; }
+
+.btn {
+  border: none; border-radius: 6px; padding: 0.375rem 1rem;
+  font-size: 0.8rem; font-weight: 500; cursor: pointer;
+  transition: all 0.15s; font-family: var(--font);
+}
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-ghost { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+.btn-ghost:hover { border-color: var(--border-hover); background: var(--surface2); }
+.btn-danger { background: rgba(239,68,68,0.15); color: var(--danger); }
+.btn-danger:hover { background: rgba(239,68,68,0.25); }
+
+.status-text { font-size: 0.75rem; color: var(--muted); }
+.status-text.error { color: var(--danger); }
+.status-text.done { color: var(--success); }
+
+/* ─── Layout ─── */
+.app-layout {
+  display: flex;
+  height: calc(100vh - 48px);
+}
+
+/* ─── Palette (left sidebar) ─── */
+.palette {
+  width: 200px;
+  border-right: 1px solid var(--border);
+  padding: 1rem 0.75rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.palette-title {
+  font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.25rem;
+}
+
+.palette-item {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.5rem 0.6rem; border-radius: 6px;
+  background: var(--surface); border: 1px solid var(--border);
+  cursor: grab; transition: all 0.15s; font-size: 0.78rem;
+}
+.palette-item:hover { border-color: var(--accent); background: var(--surface2); }
+.palette-item:active { cursor: grabbing; }
+
+.palette-icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem; flex-shrink: 0;
+}
+.palette-icon.comp { background: rgba(108,99,255,0.15); color: var(--accent); }
+.palette-icon.bq { background: rgba(249,115,22,0.15); color: var(--orange); }
+.palette-icon.lb { background: rgba(34,211,238,0.15); color: var(--cyan); }
+
+.palette-sep { height: 1px; background: var(--border); margin: 0.5rem 0; }
+
+/* ─── Canvas ─── */
+.canvas-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(108,99,255,0.03), transparent 70%),
+    var(--bg);
+}
+
+.canvas-grid {
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+
+.canvas-hint {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  text-align: center; color: var(--muted); pointer-events: none;
+  opacity: 0.6;
+}
+.canvas-hint h3 { font-size: 0.9rem; font-weight: 500; margin-bottom: 0.25rem; }
+.canvas-hint p { font-size: 0.75rem; }
+
+svg.connections {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 1;
+}
+
+/* ─── Nodes ─── */
+.node {
+  position: absolute;
+  min-width: 140px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  z-index: 10;
+  cursor: move;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.node:hover { border-color: var(--border-hover); }
+.node.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+.node.entry-node { border-color: var(--success); }
+.node.entry-node.selected {
+  border-color: var(--success);
+  box-shadow: 0 0 0 3px rgba(34,197,94,0.25);
+}
+
+.node-header {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 0.4rem;
+  border-radius: 10px 10px 0 0;
+}
+
+.node-type-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.node-type-dot.comp { background: var(--accent); }
+.node-type-dot.bq { background: var(--orange); }
+.node-type-dot.lb { background: var(--cyan); }
+
+.node-title {
+  font-size: 0.75rem; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.node-entry-badge {
+  margin-left: auto; font-size: 0.55rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--success); background: rgba(34,197,94,0.12);
+  padding: 0.1rem 0.35rem; border-radius: 3px;
+}
+
+.node-body {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.68rem; color: var(--muted);
+  display: flex; flex-direction: column; gap: 0.15rem;
+}
+
+.node-body span b { color: var(--text); font-weight: 500; }
+
+/* ─── Ports ─── */
+.port {
+  position: absolute;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--surface2); border: 2px solid var(--border);
+  cursor: crosshair; z-index: 20;
+  transition: all 0.15s;
+}
+.port:hover, .port.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  transform: scale(1.3);
+}
+.port-in { left: -6px; top: 50%; transform: translateY(-50%); }
+.port-in:hover, .port-in.active { transform: translateY(-50%) scale(1.3); }
+.port-out { right: -6px; top: 50%; transform: translateY(-50%); }
+.port-out:hover, .port-out.active { transform: translateY(-50%) scale(1.3); }
+
+/* ─── Right panel ─── */
+.right-panel {
+  width: 300px;
+  border-left: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-section {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-section-title {
+  font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.5rem;
+}
+
+.prop-row {
+  display: flex; align-items: center; gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+.prop-label {
+  font-size: 0.72rem; color: var(--muted); width: 90px; flex-shrink: 0;
+}
+.prop-input {
+  flex: 1; background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 5px;
+  padding: 0.3rem 0.5rem; font-size: 0.75rem;
+  font-family: var(--mono); outline: none;
+  transition: border-color 0.15s;
+}
+.prop-input:focus { border-color: var(--accent); }
+
+.prop-select {
+  flex: 1; background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 5px;
+  padding: 0.3rem 0.5rem; font-size: 0.75rem;
+  font-family: var(--mono); outline: none; cursor: pointer;
+}
+.prop-select:focus { border-color: var(--accent); }
+
+/* ─── Results overlay ─── */
+.results-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem;
+  display: none;
+}
+.results-panel.visible { display: block; }
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.metric-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+}
+.metric-card .mc-label {
+  font-size: 0.6rem; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--muted);
+}
+.metric-card .mc-value {
+  font-size: 1.1rem; font-weight: 600;
+  font-family: var(--mono); margin-top: 0.1rem;
+}
+.mc-value.good { color: var(--success); }
+.mc-value.warn { color: var(--warn); }
+
+.results-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 0.72rem; margin-top: 0.25rem;
+}
+.results-table th {
+  text-align: left; padding: 0.35rem 0.5rem;
+  font-size: 0.6rem; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--muted);
+  border-bottom: 1px solid var(--border); font-weight: 600;
+}
+.results-table td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+}
+.results-table tr:hover { background: rgba(108,99,255,0.04); }
+
+.sla-badge {
+  display: inline-block; padding: 0.1rem 0.4rem;
+  border-radius: 3px; font-size: 0.65rem; font-weight: 600;
+}
+.sla-badge.pass { background: rgba(34,197,94,0.15); color: var(--success); }
+.sla-badge.fail { background: rgba(239,68,68,0.15); color: var(--danger); }
+
+.section-label {
+  font-size: 0.72rem; font-weight: 600;
+  margin: 0.75rem 0 0.35rem 0;
+}
+
+pre.raw-json {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  padding: 0.5rem; font-family: var(--mono); font-size: 0.65rem;
+  line-height: 1.5; overflow: auto; max-height: 250px; color: var(--muted);
+  margin-top: 0.5rem;
+}
+
+/* ─── Sweep panel fields ─── */
+.sweep-config { display: none; }
+.sweep-config.visible { display: block; }
+</style>
+</head>
+<body>
+
+<!-- ─── Header ─── -->
+<header>
+  <h1>Arch<span>Lab</span></h1>
+  <div class="header-tabs">
+    <button class="header-tab active" data-tab="simulate">Simulate</button>
+    <button class="header-tab" data-tab="sweep">Sweep</button>
+  </div>
+  <div class="header-actions">
+    <span class="status-text" id="status"></span>
+    <button class="btn btn-ghost" id="clear-btn" title="Clear canvas">Clear</button>
+    <button class="btn btn-primary" id="run-btn">Run Simulation</button>
+  </div>
+</header>
+
+<!-- ─── Main Layout ─── -->
+<div class="app-layout">
+
+  <!-- Palette -->
+  <div class="palette">
+    <div class="palette-title">Components</div>
+    <div class="palette-item" draggable="true" data-type="component">
+      <div class="palette-icon comp">S</div>
+      <div><div style="font-weight:600">Service</div><div style="font-size:0.65rem;color:var(--muted)">Worker pool</div></div>
+    </div>
+    <div class="palette-item" draggable="true" data-type="bounded_queue">
+      <div class="palette-icon bq">B</div>
+      <div><div style="font-weight:600">Bounded Queue</div><div style="font-size:0.65rem;color:var(--muted)">Drops overflow</div></div>
+    </div>
+    <div class="palette-item" draggable="true" data-type="load_balancer">
+      <div class="palette-icon lb">L</div>
+      <div><div style="font-weight:600">Load Balancer</div><div style="font-size:0.65rem;color:var(--muted)">Round-robin</div></div>
+    </div>
+
+    <div class="palette-sep"></div>
+    <div class="palette-title">Simulation</div>
+    <div class="panel-section" style="padding:0;">
+      <div class="prop-row"><span class="prop-label">RPS</span><input class="prop-input" id="sim-rps" type="number" value="8" min="1"></div>
+      <div class="prop-row"><span class="prop-label">Duration</span><input class="prop-input" id="sim-duration" type="number" value="30" min="1"></div>
+      <div class="prop-row"><span class="prop-label">Seed</span><input class="prop-input" id="sim-seed" type="number" value="42"></div>
+      <div class="prop-row">
+        <span class="prop-label">Stochastic</span>
+        <label style="display:flex;align-items:center;gap:0.25rem;cursor:pointer;">
+          <input type="checkbox" id="sim-stochastic" checked> <span style="font-size:0.72rem;color:var(--muted)">Yes</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="sweep-config" id="sweep-config">
+      <div class="palette-sep"></div>
+      <div class="palette-title">Sweep</div>
+      <div style="padding:0;">
+        <div class="prop-row"><span class="prop-label">Parameter</span><input class="prop-input" id="sweep-param" value="db.workers" placeholder="id.field"></div>
+        <div class="prop-row"><span class="prop-label">Values</span><input class="prop-input" id="sweep-values" value="1,2,3,4,5" placeholder="1,2,3"></div>
+        <div class="prop-row"><span class="prop-label">Seeds</span><input class="prop-input" id="sweep-seeds" placeholder="42,100,200"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Canvas -->
+  <div class="canvas-area" id="canvas">
+    <div class="canvas-grid"></div>
+    <div class="canvas-hint" id="canvas-hint">
+      <h3>Drag components here</h3>
+      <p>Drop from the palette, then connect ports</p>
+    </div>
+    <svg class="connections" id="svg-connections">
+      <defs>
+        <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="var(--muted)" />
+        </marker>
+      </defs>
+    </svg>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="right-panel">
+    <!-- Properties (visible when a node is selected) -->
+    <div id="props-panel" style="display:none;">
+      <div class="panel-section">
+        <div class="panel-section-title">Properties</div>
+        <div class="prop-row"><span class="prop-label">ID</span><input class="prop-input" id="prop-id"></div>
+        <div class="prop-row"><span class="prop-label">Type</span><span class="prop-input" id="prop-type" style="background:none;border:none;color:var(--muted);padding-left:0;"></span></div>
+        <div id="prop-workers-row" class="prop-row"><span class="prop-label">Workers</span><input class="prop-input" id="prop-workers" type="number" min="1" value="2"></div>
+        <div id="prop-service-row">
+          <div class="prop-row">
+            <span class="prop-label">Distribution</span>
+            <select class="prop-select" id="prop-dist">
+              <option value="constant">Constant</option>
+              <option value="exponential" selected>Exponential</option>
+              <option value="lognormal">Lognormal</option>
+            </select>
+          </div>
+          <div class="prop-row" id="prop-dist-value-row"><span class="prop-label">Value</span><input class="prop-input" id="prop-dist-value" type="number" step="0.1" value="0.5"></div>
+          <div class="prop-row" id="prop-dist-mean-row"><span class="prop-label">Mean</span><input class="prop-input" id="prop-dist-mean" type="number" step="0.1" value="0.5"></div>
+          <div class="prop-row" id="prop-dist-sigma-row" style="display:none;"><span class="prop-label">Sigma</span><input class="prop-input" id="prop-dist-sigma" type="number" step="0.1" value="0.5"></div>
+        </div>
+        <div id="prop-maxq-row" class="prop-row" style="display:none;"><span class="prop-label">Max Queue</span><input class="prop-input" id="prop-maxq" type="number" min="0" value="10"></div>
+        <div id="prop-targets-row" style="display:none;">
+          <div class="prop-row"><span class="prop-label">Targets</span><span style="font-size:0.68rem;color:var(--muted)">Connected outputs</span></div>
+        </div>
+        <div style="margin-top:0.5rem;display:flex;gap:0.5rem;">
+          <button class="btn btn-ghost" id="prop-entry-btn" style="font-size:0.7rem;">Set as Entry</button>
+          <button class="btn btn-danger" id="prop-delete-btn" style="font-size:0.7rem;">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- No selection -->
+    <div id="no-selection-panel" class="panel-section">
+      <div style="color:var(--muted);font-size:0.78rem;text-align:center;padding:2rem 0.5rem;">
+        Select a component to edit its properties, or drag one from the palette.
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="results-panel" id="sim-results">
+      <div class="panel-section-title">Results</div>
+      <div class="metric-grid" id="metric-grid"></div>
+      <div class="section-label">Component Utilization</div>
+      <table class="results-table" id="util-table"><thead><tr><th>Component</th><th>Utilization</th></tr></thead><tbody></tbody></table>
+      <div id="sla-section" style="display:none;">
+        <div class="section-label">SLA Checks</div>
+        <table class="results-table" id="sla-table"><thead><tr><th>Check</th><th>Limit</th><th>Actual</th><th></th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="section-label">Raw JSON</div>
+      <pre class="raw-json" id="raw-json"></pre>
+    </div>
+
+    <div class="results-panel" id="sweep-results">
+      <div class="panel-section-title">Sweep Results</div>
+      <table class="results-table" id="sweep-table"><thead><tr>
+        <th>Val</th><th>Gen</th><th>Comp</th><th>Drop</th>
+        <th>Avg</th><th>P95</th><th>Thru</th><th>BN</th>
+      </tr></thead><tbody></tbody></table>
+      <div class="section-label">Raw JSON</div>
+      <pre class="raw-json" id="sweep-raw-json"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ====================================================================
+   State
+   ==================================================================== */
+let nodes = {};
+let connections = [];  // { from: nodeId, to: nodeId }
+let nextNodeNum = 1;
+let selectedNodeId = null;
+let entryNodeId = null;
+let currentTab = 'simulate';
+
+let draggingType = null;
+let draggingNode = null;
+let dragOffsetX = 0, dragOffsetY = 0;
+
+let connectingFrom = null;
+let tempLine = null;
+
+/* ====================================================================
+   DOM refs
+   ==================================================================== */
+const canvas = document.getElementById('canvas');
+const svgEl = document.getElementById('svg-connections');
+const hintEl = document.getElementById('canvas-hint');
+const statusEl = document.getElementById('status');
+const runBtn = document.getElementById('run-btn');
+
+/* ====================================================================
+   Palette drag → canvas drop
+   ==================================================================== */
+document.querySelectorAll('.palette-item').forEach(item => {
+  item.addEventListener('dragstart', e => {
+    draggingType = item.dataset.type;
+    e.dataTransfer.effectAllowed = 'copy';
+  });
+});
+
+canvas.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+canvas.addEventListener('drop', e => {
+  e.preventDefault();
+  if (!draggingType) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left - 70;
+  const y = e.clientY - rect.top - 30;
+  createNode(draggingType, x, y);
+  draggingType = null;
+});
+
+/* ====================================================================
+   Node creation
+   ==================================================================== */
+function createNode(type, x, y) {
+  const id = type === 'load_balancer' ? `lb${nextNodeNum}` :
+             type === 'bounded_queue' ? `bq${nextNodeNum}` : `svc${nextNodeNum}`;
+  nextNodeNum++;
+
+  const node = {
+    id, type, x, y,
+    workers: type === 'load_balancer' ? undefined : 2,
+    service_time: type === 'load_balancer' ? undefined : { distribution: 'exponential', mean: 0.5 },
+    max_queue_size: type === 'bounded_queue' ? 10 : undefined,
+  };
+  nodes[id] = node;
+
+  if (!entryNodeId) { entryNodeId = id; }
+  renderNode(node);
+  updateHint();
+  selectNode(id);
+}
+
+function renderNode(node) {
+  let el = document.getElementById('node-' + node.id);
+  if (el) el.remove();
+
+  el = document.createElement('div');
+  el.className = 'node' + (node.id === entryNodeId ? ' entry-node' : '') +
+                 (node.id === selectedNodeId ? ' selected' : '');
+  el.id = 'node-' + node.id;
+  el.style.left = node.x + 'px';
+  el.style.top = node.y + 'px';
+
+  const dotClass = node.type === 'load_balancer' ? 'lb' : node.type === 'bounded_queue' ? 'bq' : 'comp';
+  const typeLabel = node.type === 'load_balancer' ? 'Load Balancer' :
+                    node.type === 'bounded_queue' ? 'Bounded Queue' : 'Service';
+
+  let bodyHtml = '';
+  if (node.type === 'load_balancer') {
+    const targets = connections.filter(c => c.from === node.id).map(c => c.to);
+    bodyHtml = `<span>targets: <b>${targets.length > 0 ? targets.join(', ') : 'none'}</b></span>`;
+  } else {
+    const distStr = node.service_time ? node.service_time.distribution : '?';
+    bodyHtml = `<span>workers: <b>${node.workers}</b></span>`;
+    bodyHtml += `<span>svc: <b>${distStr}</b></span>`;
+    if (node.type === 'bounded_queue') {
+      bodyHtml += `<span>max queue: <b>${node.max_queue_size}</b></span>`;
+    }
+  }
+
+  el.innerHTML = `
+    <div class="port port-in" data-node="${node.id}" data-dir="in"></div>
+    <div class="port port-out" data-node="${node.id}" data-dir="out"></div>
+    <div class="node-header">
+      <div class="node-type-dot ${dotClass}"></div>
+      <div class="node-title">${node.id}</div>
+      ${node.id === entryNodeId ? '<div class="node-entry-badge">entry</div>' : ''}
+    </div>
+    <div class="node-body">${bodyHtml}</div>
+  `;
+
+  // Node dragging
+  el.addEventListener('mousedown', onNodeMouseDown);
+
+  // Port interactions
+  el.querySelectorAll('.port').forEach(port => {
+    port.addEventListener('mousedown', onPortMouseDown);
+  });
+
+  // Selection
+  el.addEventListener('click', e => {
+    if (e.target.classList.contains('port')) return;
+    selectNode(node.id);
+  });
+
+  canvas.appendChild(el);
+}
+
+/* ====================================================================
+   Node dragging
+   ==================================================================== */
+function onNodeMouseDown(e) {
+  if (e.target.classList.contains('port')) return;
+  const nodeEl = e.currentTarget;
+  const nodeId = nodeEl.id.replace('node-', '');
+  draggingNode = nodeId;
+  const rect = nodeEl.getBoundingClientRect();
+  dragOffsetX = e.clientX - rect.left;
+  dragOffsetY = e.clientY - rect.top;
+  e.preventDefault();
+}
+
+document.addEventListener('mousemove', e => {
+  if (draggingNode) {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left - dragOffsetX;
+    const y = e.clientY - rect.top - dragOffsetY;
+    nodes[draggingNode].x = Math.max(0, x);
+    nodes[draggingNode].y = Math.max(0, y);
+    const el = document.getElementById('node-' + draggingNode);
+    el.style.left = nodes[draggingNode].x + 'px';
+    el.style.top = nodes[draggingNode].y + 'px';
+    drawConnections();
+  }
+  if (connectingFrom && tempLine) {
+    const rect = canvas.getBoundingClientRect();
+    tempLine.setAttribute('x2', e.clientX - rect.left);
+    tempLine.setAttribute('y2', e.clientY - rect.top);
+  }
+});
+
+document.addEventListener('mouseup', e => {
+  if (draggingNode) { draggingNode = null; }
+  if (connectingFrom) { finishConnection(e); }
+});
+
+/* ====================================================================
+   Port connection drawing
+   ==================================================================== */
+function onPortMouseDown(e) {
+  e.stopPropagation();
+  e.preventDefault();
+  const port = e.currentTarget;
+  const nodeId = port.dataset.node;
+  const dir = port.dataset.dir;
+
+  if (dir === 'out') {
+    connectingFrom = nodeId;
+    const rect = canvas.getBoundingClientRect();
+    const portRect = port.getBoundingClientRect();
+    const sx = portRect.left + portRect.width/2 - rect.left;
+    const sy = portRect.top + portRect.height/2 - rect.top;
+
+    tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    tempLine.setAttribute('x1', sx);
+    tempLine.setAttribute('y1', sy);
+    tempLine.setAttribute('x2', sx);
+    tempLine.setAttribute('y2', sy);
+    tempLine.setAttribute('stroke', 'var(--accent)');
+    tempLine.setAttribute('stroke-width', '2');
+    tempLine.setAttribute('stroke-dasharray', '6 3');
+    tempLine.style.pointerEvents = 'none';
+    svgEl.appendChild(tempLine);
+    port.classList.add('active');
+  }
+}
+
+function finishConnection(e) {
+  if (tempLine) { tempLine.remove(); tempLine = null; }
+
+  document.querySelectorAll('.port.active').forEach(p => p.classList.remove('active'));
+
+  const target = document.elementFromPoint(e.clientX, e.clientY);
+  if (target && target.classList.contains('port') && target.dataset.dir === 'in') {
+    const toId = target.dataset.node;
+    if (toId !== connectingFrom) {
+      connections = connections.filter(c => !(c.from === connectingFrom && c.to === toId));
+      connections.push({ from: connectingFrom, to: toId });
+      renderNode(nodes[connectingFrom]);
+      drawConnections();
+    }
+  }
+  connectingFrom = null;
+}
+
+function drawConnections() {
+  svgEl.querySelectorAll('path.conn-line').forEach(p => p.remove());
+
+  connections.forEach(conn => {
+    const fromEl = document.querySelector(`#node-${CSS.escape(conn.from)} .port-out`);
+    const toEl = document.querySelector(`#node-${CSS.escape(conn.to)} .port-in`);
+    if (!fromEl || !toEl) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const fr = fromEl.getBoundingClientRect();
+    const tr = toEl.getBoundingClientRect();
+    const x1 = fr.left + fr.width/2 - rect.left;
+    const y1 = fr.top + fr.height/2 - rect.top;
+    const x2 = tr.left + tr.width/2 - rect.left;
+    const y2 = tr.top + tr.height/2 - rect.top;
+
+    const dx = Math.abs(x2 - x1) * 0.5;
+    const d = `M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.classList.add('conn-line');
+    path.setAttribute('d', d);
+    path.setAttribute('stroke', 'var(--muted)');
+    path.setAttribute('stroke-width', '2');
+    path.setAttribute('fill', 'none');
+    path.setAttribute('marker-end', 'url(#arrowhead)');
+    svgEl.appendChild(path);
+  });
+}
+
+/* ====================================================================
+   Selection & Properties Panel
+   ==================================================================== */
+function selectNode(nodeId) {
+  selectedNodeId = nodeId;
+  document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
+  const el = document.getElementById('node-' + nodeId);
+  if (el) el.classList.add('selected');
+  showProperties(nodeId);
+}
+
+function deselectAll() {
+  selectedNodeId = null;
+  document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
+  document.getElementById('props-panel').style.display = 'none';
+  document.getElementById('no-selection-panel').style.display = 'block';
+}
+
+canvas.addEventListener('click', e => {
+  if (e.target === canvas || e.target.classList.contains('canvas-grid')) {
+    deselectAll();
+  }
+});
+
+function showProperties(nodeId) {
+  const node = nodes[nodeId];
+  if (!node) return;
+
+  document.getElementById('props-panel').style.display = 'block';
+  document.getElementById('no-selection-panel').style.display = 'none';
+
+  document.getElementById('prop-id').value = node.id;
+  const typeNames = { component: 'Service', bounded_queue: 'Bounded Queue', load_balancer: 'Load Balancer' };
+  document.getElementById('prop-type').textContent = typeNames[node.type] || node.type;
+
+  const isLB = node.type === 'load_balancer';
+  document.getElementById('prop-workers-row').style.display = isLB ? 'none' : 'flex';
+  document.getElementById('prop-service-row').style.display = isLB ? 'none' : 'block';
+  document.getElementById('prop-maxq-row').style.display = node.type === 'bounded_queue' ? 'flex' : 'none';
+  document.getElementById('prop-targets-row').style.display = isLB ? 'block' : 'none';
+
+  if (!isLB) {
+    document.getElementById('prop-workers').value = node.workers || 2;
+    const st = node.service_time || { distribution: 'exponential', mean: 0.5 };
+    document.getElementById('prop-dist').value = st.distribution;
+    updateDistFields(st);
+    if (node.type === 'bounded_queue') {
+      document.getElementById('prop-maxq').value = node.max_queue_size || 10;
+    }
+  }
+}
+
+function updateDistFields(st) {
+  const dist = st.distribution;
+  document.getElementById('prop-dist-value-row').style.display = dist === 'constant' ? 'flex' : 'none';
+  document.getElementById('prop-dist-mean-row').style.display = dist !== 'constant' ? 'flex' : 'none';
+  document.getElementById('prop-dist-sigma-row').style.display = dist === 'lognormal' ? 'flex' : 'none';
+
+  if (dist === 'constant') {
+    document.getElementById('prop-dist-value').value = st.value || 0.5;
+  } else {
+    document.getElementById('prop-dist-mean').value = st.mean || 0.5;
+    if (dist === 'lognormal') {
+      document.getElementById('prop-dist-sigma').value = st.sigma || 0.5;
+    }
+  }
+}
+
+// Prop change handlers
+document.getElementById('prop-id').addEventListener('change', e => {
+  if (!selectedNodeId) return;
+  const newId = e.target.value.trim();
+  if (!newId || newId === selectedNodeId) return;
+  if (nodes[newId]) { e.target.value = selectedNodeId; return; }
+
+  const node = nodes[selectedNodeId];
+  delete nodes[selectedNodeId];
+  connections.forEach(c => {
+    if (c.from === selectedNodeId) c.from = newId;
+    if (c.to === selectedNodeId) c.to = newId;
+  });
+  if (entryNodeId === selectedNodeId) entryNodeId = newId;
+
+  node.id = newId;
+  nodes[newId] = node;
+  selectedNodeId = newId;
+
+  const oldEl = document.getElementById('node-' + node.id);
+  if (oldEl) oldEl.remove();
+  Object.values(nodes).forEach(n => renderNode(n));
+  drawConnections();
+  selectNode(newId);
+});
+
+document.getElementById('prop-workers').addEventListener('input', e => {
+  if (!selectedNodeId || !nodes[selectedNodeId]) return;
+  nodes[selectedNodeId].workers = parseInt(e.target.value) || 1;
+  renderNode(nodes[selectedNodeId]); drawConnections();
+});
+
+document.getElementById('prop-dist').addEventListener('change', e => {
+  if (!selectedNodeId || !nodes[selectedNodeId]) return;
+  const dist = e.target.value;
+  const node = nodes[selectedNodeId];
+  if (dist === 'constant') node.service_time = { distribution: 'constant', value: 0.5 };
+  else if (dist === 'exponential') node.service_time = { distribution: 'exponential', mean: 0.5 };
+  else if (dist === 'lognormal') node.service_time = { distribution: 'lognormal', mean: 0.5, sigma: 0.5 };
+  updateDistFields(node.service_time);
+  renderNode(node); drawConnections();
+});
+
+['prop-dist-value', 'prop-dist-mean', 'prop-dist-sigma'].forEach(id => {
+  document.getElementById(id).addEventListener('input', e => {
+    if (!selectedNodeId || !nodes[selectedNodeId]) return;
+    const node = nodes[selectedNodeId];
+    const st = node.service_time;
+    const v = parseFloat(e.target.value) || 0.1;
+    if (id === 'prop-dist-value') st.value = v;
+    else if (id === 'prop-dist-mean') st.mean = v;
+    else if (id === 'prop-dist-sigma') st.sigma = v;
+    renderNode(node); drawConnections();
+  });
+});
+
+document.getElementById('prop-maxq').addEventListener('input', e => {
+  if (!selectedNodeId || !nodes[selectedNodeId]) return;
+  nodes[selectedNodeId].max_queue_size = parseInt(e.target.value) || 0;
+  renderNode(nodes[selectedNodeId]); drawConnections();
+});
+
+document.getElementById('prop-entry-btn').addEventListener('click', () => {
+  if (!selectedNodeId) return;
+  entryNodeId = selectedNodeId;
+  Object.values(nodes).forEach(n => renderNode(n));
+  drawConnections();
+  showProperties(selectedNodeId);
+});
+
+document.getElementById('prop-delete-btn').addEventListener('click', () => {
+  if (!selectedNodeId) return;
+  deleteNode(selectedNodeId);
+});
+
+function deleteNode(nodeId) {
+  const el = document.getElementById('node-' + nodeId);
+  if (el) el.remove();
+  delete nodes[nodeId];
+  connections = connections.filter(c => c.from !== nodeId && c.to !== nodeId);
+  if (entryNodeId === nodeId) {
+    const remaining = Object.keys(nodes);
+    entryNodeId = remaining.length > 0 ? remaining[0] : null;
+    if (entryNodeId) renderNode(nodes[entryNodeId]);
+  }
+  drawConnections();
+  deselectAll();
+  updateHint();
+}
+
+/* ====================================================================
+   Clear
+   ==================================================================== */
+document.getElementById('clear-btn').addEventListener('click', () => {
+  Object.keys(nodes).forEach(id => {
+    const el = document.getElementById('node-' + id);
+    if (el) el.remove();
+  });
+  nodes = {};
+  connections = [];
+  entryNodeId = null;
+  nextNodeNum = 1;
+  deselectAll();
+  drawConnections();
+  updateHint();
+  document.getElementById('sim-results').classList.remove('visible');
+  document.getElementById('sweep-results').classList.remove('visible');
+});
+
+function updateHint() {
+  hintEl.style.display = Object.keys(nodes).length === 0 ? 'block' : 'none';
+}
+
+/* ====================================================================
+   Tabs
+   ==================================================================== */
+document.querySelectorAll('.header-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.header-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTab = btn.dataset.tab;
+    runBtn.textContent = currentTab === 'simulate' ? 'Run Simulation' : 'Run Sweep';
+    document.getElementById('sweep-config').classList.toggle('visible', currentTab === 'sweep');
+    document.getElementById('sim-results').classList.remove('visible');
+    document.getElementById('sweep-results').classList.remove('visible');
+  });
+});
+
+/* ====================================================================
+   Build Config from Canvas
+   ==================================================================== */
+function buildConfig() {
+  const nodeList = Object.values(nodes);
+  if (nodeList.length === 0) throw new Error('Add at least one component');
+  if (!entryNodeId) throw new Error('Set an entry component');
+
+  const components = nodeList.map(node => {
+    const outConns = connections.filter(c => c.from === node.id);
+    const cfg = { id: node.id, type: node.type };
+
+    if (node.type === 'load_balancer') {
+      cfg.targets = outConns.map(c => c.to);
+      if (cfg.targets.length === 0) throw new Error(`Load balancer "${node.id}" needs at least one target`);
+    } else {
+      cfg.workers = node.workers || 2;
+      const st = node.service_time;
+      if (st.distribution === 'constant') cfg.service_time = { distribution: 'constant', value: st.value };
+      else if (st.distribution === 'exponential') cfg.service_time = { distribution: 'exponential', mean: st.mean };
+      else if (st.distribution === 'lognormal') cfg.service_time = { distribution: 'lognormal', mean: st.mean, sigma: st.sigma };
+
+      if (node.type === 'bounded_queue') cfg.max_queue_size = node.max_queue_size || 10;
+
+      if (outConns.length === 1) cfg.next_component = outConns[0].to;
+      else if (outConns.length > 1) {
+        const prob = +(1 / outConns.length).toFixed(4);
+        cfg.next_component = outConns.map(c => ({ target: c.to, probability: prob }));
+      }
+    }
+    return cfg;
+  });
+
+  return {
+    components,
+    simulation: {
+      entry: entryNodeId,
+      rps: parseFloat(document.getElementById('sim-rps').value) || 8,
+      duration: parseFloat(document.getElementById('sim-duration').value) || 30,
+      seed: parseInt(document.getElementById('sim-seed').value) || undefined,
+      stochastic: document.getElementById('sim-stochastic').checked,
+    },
+  };
+}
+
+/* ====================================================================
+   Run
+   ==================================================================== */
+runBtn.addEventListener('click', async () => {
+  statusEl.textContent = 'Running...';
+  statusEl.className = 'status-text';
+  runBtn.disabled = true;
+
+  try {
+    const config = buildConfig();
+
+    if (currentTab === 'simulate') {
+      const res = await fetch('/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+      if (!res.ok) { const t = await res.text(); throw new Error(t); }
+      const data = await res.json();
+      renderSimResults(data);
+    } else {
+      const param = document.getElementById('sweep-param').value.trim();
+      const valuesRaw = document.getElementById('sweep-values').value.trim();
+      const seedsRaw = document.getElementById('sweep-seeds').value.trim();
+      if (!param || !valuesRaw) throw new Error('Sweep parameter and values are required');
+
+      const values = valuesRaw.split(',').map(v => {
+        const n = Number(v.trim());
+        return isNaN(n) ? v.trim() : n;
+      });
+      const body = { ...config, param, values };
+      if (seedsRaw) body.seeds = seedsRaw.split(',').map(s => parseInt(s.trim(), 10));
+
+      const res = await fetch('/sweep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) { const t = await res.text(); throw new Error(t); }
+      const data = await res.json();
+      renderSweepResults(data);
+    }
+
+    statusEl.textContent = 'Done';
+    statusEl.className = 'status-text done';
+  } catch (e) {
+    statusEl.textContent = e.message.substring(0, 80);
+    statusEl.className = 'status-text error';
+  } finally {
+    runBtn.disabled = false;
+  }
+});
+
+/* ====================================================================
+   Render results
+   ==================================================================== */
+function renderSimResults(data) {
+  document.getElementById('sweep-results').classList.remove('visible');
+  const section = document.getElementById('sim-results');
+  section.classList.add('visible');
+
+  const grid = document.getElementById('metric-grid');
+  const metrics = [
+    { label: 'Generated', value: fmt(data.generated), cls: '' },
+    { label: 'Completed', value: fmt(data.completed), cls: '' },
+    { label: 'Dropped', value: fmt(data.dropped), cls: data.dropped > 0 ? 'warn' : 'good' },
+    { label: 'Avg Latency', value: fmtF(data.average_latency) + 's', cls: '' },
+    { label: 'P95 Latency', value: fmtF(data.p95_latency) + 's', cls: '' },
+    { label: 'P99 Latency', value: fmtF(data.p99_latency) + 's', cls: '' },
+    { label: 'Throughput', value: fmtF(data.throughput) + '/s', cls: '' },
+    { label: 'Bottleneck', value: data.bottleneck || '-', cls: data.bottleneck ? 'warn' : '' },
+  ];
+  grid.innerHTML = metrics.map(m => `
+    <div class="metric-card">
+      <div class="mc-label">${m.label}</div>
+      <div class="mc-value ${m.cls}">${m.value}</div>
+    </div>
+  `).join('');
+
+  const utilTbody = document.querySelector('#util-table tbody');
+  utilTbody.innerHTML = Object.entries(data.component_utilization || {}).map(([k, v]) =>
+    `<tr><td>${k}</td><td>${fmtF(v)}</td></tr>`
+  ).join('');
+
+  const slaSection = document.getElementById('sla-section');
+  if (data.sla) {
+    slaSection.style.display = 'block';
+    document.querySelector('#sla-table tbody').innerHTML = Object.entries(data.sla)
+      .filter(([k]) => k !== 'all_passed')
+      .map(([k, v]) => `<tr><td>${k}</td><td>${v.threshold}</td><td>${fmtF(v.actual)}</td>
+        <td><span class="sla-badge ${v.passed ? 'pass' : 'fail'}">${v.passed ? 'PASS' : 'FAIL'}</span></td></tr>`
+      ).join('');
+  } else { slaSection.style.display = 'none'; }
+
+  document.getElementById('raw-json').textContent = JSON.stringify(data, null, 2);
+
+  // Highlight bottleneck on canvas
+  document.querySelectorAll('.node').forEach(n => n.style.outline = 'none');
+  if (data.bottleneck) {
+    const bnEl = document.getElementById('node-' + data.bottleneck);
+    if (bnEl) bnEl.style.outline = '2px solid var(--warn)';
+  }
+}
+
+function renderSweepResults(data) {
+  document.getElementById('sim-results').classList.remove('visible');
+  const section = document.getElementById('sweep-results');
+  section.classList.add('visible');
+
+  document.querySelector('#sweep-table tbody').innerHTML = data.results.map(r => `
+    <tr>
+      <td>${r.param_value}</td><td>${fmt(r.generated)}</td><td>${fmt(r.completed)}</td>
+      <td>${fmt(r.dropped)}</td><td>${fmtF(r.average_latency)}</td><td>${fmtF(r.p95_latency)}</td>
+      <td>${fmtF(r.throughput)}</td><td>${r.bottleneck || '-'}</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('sweep-raw-json').textContent = JSON.stringify(data, null, 2);
+}
+
+function fmt(v) { return typeof v === 'number' ? (Number.isInteger(v) ? v.toString() : v.toFixed(0)) : v; }
+function fmtF(v) { return typeof v === 'number' ? v.toFixed(3) : v; }
+
+/* ====================================================================
+   Load default example on startup
+   ==================================================================== */
+function loadDefaultTopology() {
+  createNode('component', 100, 120);
+  const apiId = Object.keys(nodes)[0];
+  nodes[apiId].id = 'api'; nodes[apiId].workers = 5;
+  nodes[apiId].service_time = { distribution: 'exponential', mean: 0.2 };
+  const apiNode = nodes[apiId]; delete nodes[apiId]; nodes['api'] = apiNode;
+  entryNodeId = 'api';
+
+  createNode('component', 400, 120);
+  const dbId = Object.keys(nodes).find(k => k !== 'api');
+  nodes[dbId].id = 'db'; nodes[dbId].workers = 3;
+  nodes[dbId].service_time = { distribution: 'exponential', mean: 0.8 };
+  const dbNode = nodes[dbId]; delete nodes[dbId]; nodes['db'] = dbNode;
+
+  connections.push({ from: 'api', to: 'db' });
+
+  Object.values(nodes).forEach(n => renderNode(n));
+  drawConnections();
+  updateHint();
+  deselectAll();
+}
+
+loadDefaultTopology();
+</script>
+
+</body>
+</html>
